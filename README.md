@@ -16,4 +16,4 @@ ZIP safety controls include an 8 MB request limit, two-review concurrency limit,
 
 ## Bring your own AI
 
-After a website scan, users can ask their own model for a second opinion. Supported presets include OpenAI, Grok/xAI, Gemini, OpenRouter, Ollama-compatible endpoints, and custom HTTPS OpenAI-compatible endpoints. The API key is sent only for that request, is cleared from the form after success, is not saved in `audit-history.json`, and is not committed to the repository. Only the structured scan findings are sent by default; ZIP contents are not sent.
+After a website scan, users can ask their own model for a second opinion. Supported presets include OpenAI, Grok/xAI, Groq, Gemini, OpenRouter, Ollama-compatible endpoints, and custom HTTPS OpenAI-compatible endpoints. The API key is sent only for that request, is cleared from the form after success, is not saved in `audit-history.json`, and is not committed to the repository. Only the structured scan findings are sent by default; ZIP contents are not sent.
