@@ -43,6 +43,7 @@ async function aiReview(config, audit) {
   let endpoint = String(config.endpoint || '').trim();
   if (provider === 'openai') endpoint = 'https://api.openai.com/v1/chat/completions';
   if (provider === 'grok') endpoint = 'https://api.x.ai/v1/chat/completions';
+  if (provider === 'groq') endpoint = 'https://api.groq.com/openai/v1/chat/completions';
   if (provider === 'openrouter') endpoint = 'https://openrouter.ai/api/v1/chat/completions';
   if (provider === 'ollama') endpoint = endpoint || 'http://127.0.0.1:11434/v1/chat/completions';
   if (provider === 'gemini') endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
