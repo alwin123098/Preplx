@@ -36,6 +36,22 @@ function readHistory() { try { return JSON.parse(fs.readFileSync(historyFile, 'u
 function saveAudit(record) { const history = readHistory().filter(item => item.domain !== record.domain); history.unshift(record); fs.writeFileSync(historyFile, JSON.stringify(history.slice(0, 30), null, 2)); }
 function run(command, args, options = {}) { return new Promise((resolve, reject) => execFile(command, args, { maxBuffer: 256 * 1024, timeout: 5000, ...options }, (error, stdout, stderr) => error ? reject(new Error(stderr || error.message)) : resolve(stdout))); }
 function safeArchivePath(name) { return !!name && !name.includes('\0') && !name.startsWith('/') && !/^[a-zA-Z]:[\\/]/.test(name) && !name.split(/[\\/]/).includes('..') && !/[\u0000-\u001f]/.test(name); }
+function requestAI(url, options, payload) { return new Promise((resolve, reject) => { const transport = url.protocol === 'https:' ? https : http; const req = transport.request(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...options.headers }, timeout: 30000 }, response => { let body = ''; response.setEncoding('utf8'); response.on('data', chunk => { if (body.length < 300000) body += chunk; }); response.on('end', () => { try { const parsed = JSON.parse(body); if (response.statusCode >= 400) return reject(new Error(parsed.error?.message || parsed.error || `AI provider returned HTTP ${response.statusCode}.`)); resolve(parsed); } catch { reject(new Error('The AI provider returned an unreadable response.')); } }); }); req.on('timeout', () => req.destroy(new Error('AI request timed out.'))); req.on('error', reject); req.end(JSON.stringify(payload)); }); }
+async function aiReview(config, audit) {
+  const provider = String(config.provider || 'openai'); const model = String(config.model || '').trim(); const key = String(config.apiKey || '').trim();
+  if (!key || !model) throw new Error('Choose a model and enter an API key.');
+  let endpoint = String(config.endpoint || '').trim();
+  if (provider === 'openai') endpoint = 'https://api.openai.com/v1/chat/completions';
+  if (provider === 'grok') endpoint = 'https://api.x.ai/v1/chat/completions';
+  if (provider === 'openrouter') endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+  if (provider === 'ollama') endpoint = endpoint || 'http://127.0.0.1:11434/v1/chat/completions';
+  if (provider === 'gemini') endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  const target = cleanUrl(endpoint); if (target.protocol !== 'https:' && provider !== 'ollama') throw new Error('AI endpoints must use HTTPS.'); if (provider !== 'ollama') await ensurePublicTarget(target);
+  const prompt = `You are a defensive website security advisor. Explain these already-detected findings in plain language for a small business owner. Do not invent vulnerabilities, claim you tested anything beyond the evidence, or provide attack instructions. Give a short priority order and safe remediation checklist. Findings:\n${JSON.stringify(audit).slice(0, 50000)}`;
+  const result = provider === 'gemini' ? await requestAI(target, {}, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 900 } }) : await requestAI(target, { Authorization: `Bearer ${key}` }, { model, messages: [{ role: 'system', content: 'You provide defensive, evidence-based security guidance.' }, { role: 'user', content: prompt }], temperature: 0.2, max_tokens: 900 });
+  const text = provider === 'gemini' ? result.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') : result.choices?.[0]?.message?.content;
+  if (!text) throw new Error('The AI provider returned no review text.'); return { text };
+}
 function sourceFinding(file, contents) {
   const checks = [
     [/\beval\s*\(/, 'high', 'Dynamic code execution found', 'Avoid eval(). Use a strict allow-list or parse only trusted structured data.', 'Replace eval(input) with JSON.parse(input) when you expect JSON.'],
@@ -124,6 +140,9 @@ const server = http.createServer(async (req, res) => {
     }); return;
   }
   if (req.method === 'GET' && req.url === '/api/history') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(readHistory())); }
+  if (req.method === 'POST' && req.url === '/api/ai-review') {
+    let raw = ''; req.on('data', chunk => { if (raw.length < 70000) raw += chunk; }); req.on('end', async () => { try { const body = JSON.parse(raw); const result = await aiReview(body.config || {}, body.audit || {}); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(result)); } catch (error) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: error.message })); } }); return;
+  }
   if (req.method === 'POST' && req.url === '/api/zip-audit') {
     if (activeZipAudits >= 2) { res.writeHead(429, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'Two ZIP reviews are already running. Please try again shortly.' })); }
     activeZipAudits += 1;
