@@ -7,6 +7,7 @@ const reportDomain = document.querySelector('#report-domain');
 const percent = document.querySelector('#scan-percent');
 const bar = document.querySelector('#bar-fill');
 const steps = [...document.querySelectorAll('#scan-steps li')];
+let latestAudit = null;
 
 function normalise(value) {
   let url = value.trim();
@@ -47,6 +48,7 @@ form.addEventListener('submit', async (event) => {
 });
 
 function renderAudit(audit) {
+  latestAudit = audit;
   document.querySelector('.score b').textContent = audit.score;
   document.querySelector('.score-label').innerHTML = `<i></i> ${audit.status}`;
   const urgent = audit.findings.filter(item => item.level === 'urgent').length;
@@ -58,6 +60,9 @@ function renderAudit(audit) {
   document.querySelector('.findings').innerHTML = `<div class="finding-heading"><h3>Your action list</h3><p>Results from a local, explainable security reasoning engine.</p></div>${audit.findings.map(item).join('')}`;
   loadHistory();
 }
+
+document.querySelector('#ai-provider').addEventListener('change', event => document.querySelector('.custom-endpoint').classList.toggle('hidden', event.target.value !== 'custom' && event.target.value !== 'ollama'));
+document.querySelector('#ai-form').addEventListener('submit', async event => { event.preventDefault(); if (!latestAudit) return; const form = event.currentTarget; const button = form.querySelector('button'); const answer = document.querySelector('#ai-answer'); button.disabled = true; button.innerHTML = 'Reviewing findings…'; answer.classList.add('hidden'); try { const response = await fetch('/api/ai-review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audit: latestAudit, config: { provider: document.querySelector('#ai-provider').value, model: document.querySelector('#ai-model').value, apiKey: document.querySelector('#ai-key').value, endpoint: document.querySelector('#ai-endpoint').value } }) }); const result = await response.json(); if (!response.ok || result.error) throw new Error(result.error || 'The AI review failed.'); answer.textContent = result.text; answer.classList.remove('hidden'); document.querySelector('#ai-key').value = ''; } catch (error) { answer.textContent = error.message; answer.classList.remove('hidden'); } finally { button.disabled = false; button.innerHTML = 'Ask my AI <span>→</span>'; } });
 
 function loadHistory() {
   fetch('/api/history').then(response => response.json()).then(history => {
