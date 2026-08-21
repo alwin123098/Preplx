@@ -13,6 +13,7 @@ const { execFile } = require('child_process');
 
 const root = __dirname;
 const historyFile = path.join(root, 'audit-history.json');
+let activeZipAudits = 0;
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 
 function cleanUrl(value) {
@@ -33,7 +34,8 @@ async function ensurePublicTarget(url) {
 }
 function readHistory() { try { return JSON.parse(fs.readFileSync(historyFile, 'utf8')); } catch { return []; } }
 function saveAudit(record) { const history = readHistory().filter(item => item.domain !== record.domain); history.unshift(record); fs.writeFileSync(historyFile, JSON.stringify(history.slice(0, 30), null, 2)); }
-function run(command, args, options = {}) { return new Promise((resolve, reject) => execFile(command, args, { maxBuffer: 1024 * 1024, ...options }, (error, stdout, stderr) => error ? reject(new Error(stderr || error.message)) : resolve(stdout))); }
+function run(command, args, options = {}) { return new Promise((resolve, reject) => execFile(command, args, { maxBuffer: 256 * 1024, timeout: 5000, ...options }, (error, stdout, stderr) => error ? reject(new Error(stderr || error.message)) : resolve(stdout))); }
+function safeArchivePath(name) { return !!name && !name.includes('\0') && !name.startsWith('/') && !/^[a-zA-Z]:[\\/]/.test(name) && !name.split(/[\\/]/).includes('..') && !/[\u0000-\u001f]/.test(name); }
 function sourceFinding(file, contents) {
   const checks = [
     [/\beval\s*\(/, 'high', 'Dynamic code execution found', 'Avoid eval(). Use a strict allow-list or parse only trusted structured data.', 'Replace eval(input) with JSON.parse(input) when you expect JSON.'],
@@ -52,13 +54,15 @@ async function auditZip(body, boundary) {
   const fileStart = headerEnd + 4; const fileEnd = body.indexOf(marker, fileStart) - 2;
   if (!name.toLowerCase().endsWith('.zip') || fileEnd <= fileStart) throw new Error('Please upload a .zip file.');
   const temp = path.join(os.tmpdir(), `siteguard-${Date.now()}-${Math.random().toString(16).slice(2)}.zip`);
-  fs.writeFileSync(temp, body.subarray(fileStart, fileEnd));
+  fs.writeFileSync(temp, body.subarray(fileStart, fileEnd), { mode: 0o600 });
   try {
-    const names = (await run('unzip', ['-Z1', temp])).split('\n').filter(Boolean);
+    await run('unzip', ['-tqq', temp], { timeout: 8000 });
+    const names = (await run('unzip', ['-Z1', temp], { timeout: 4000 })).split('\n').filter(Boolean);
     if (names.length > 1000) throw new Error('This ZIP contains too many files.');
-    const allowed = names.filter(name => /\.(js|ts|jsx|tsx|php|py|rb|java|go|html|css|json|env|yml|yaml)$/i.test(name) && !name.includes('..')).slice(0, 120);
+    if (names.some(name => !safeArchivePath(name))) throw new Error('This ZIP contains an unsafe path. Remove absolute paths or ../ entries and try again.');
+    const allowed = names.filter(name => /\.(js|ts|jsx|tsx|php|py|rb|java|go|html|css|json|env|yml|yaml)$/i.test(name)).slice(0, 120);
     const findings = [];
-    for (const name of allowed) { const text = await run('unzip', ['-p', temp, name]); findings.push(...sourceFinding(name, text.slice(0, 200000))); }
+    for (const name of allowed) { const text = await run('unzip', ['-p', temp, '--', name], { maxBuffer: 220 * 1024, timeout: 3000 }); findings.push(...sourceFinding(name, text.slice(0, 200000))); }
     const unique = findings.filter((finding, index, all) => index === all.findIndex(other => other.file === finding.file && other.title === finding.title));
     const high = unique.filter(finding => finding.severity === 'high').length, medium = unique.filter(finding => finding.severity === 'medium').length;
     return { filename: name, filesChecked: allowed.length, score: Math.max(15, 100 - high * 24 - medium * 12 - (unique.length - high - medium) * 5), findings: unique };
@@ -121,11 +125,14 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && req.url === '/api/history') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(readHistory())); }
   if (req.method === 'POST' && req.url === '/api/zip-audit') {
+    if (activeZipAudits >= 2) { res.writeHead(429, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'Two ZIP reviews are already running. Please try again shortly.' })); }
+    activeZipAudits += 1;
     const type = req.headers['content-type'] || ''; const match = type.match(/boundary=(.+)$/);
     if (!match) { res.writeHead(400, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'Upload data was not recognised.' })); }
     const chunks = []; let length = 0;
     req.on('data', chunk => { length += chunk.length; if (length <= 8 * 1024 * 1024) chunks.push(chunk); });
-    req.on('end', async () => { try { if (length > 8 * 1024 * 1024) throw new Error('Please upload a ZIP smaller than 8 MB.'); const result = await auditZip(Buffer.concat(chunks), match[1]); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(result)); } catch (error) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: error.message })); } }); return;
+    req.setTimeout(15000, () => req.destroy(new Error('ZIP upload timed out.')));
+    req.on('end', async () => { try { if (length > 8 * 1024 * 1024) throw new Error('Please upload a ZIP smaller than 8 MB.'); const result = await auditZip(Buffer.concat(chunks), match[1]); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(result)); } catch (error) { res.writeHead(error.message.includes('timed out') ? 408 : 400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: error.message })); } finally { activeZipAudits -= 1; } }); return;
   }
   const requested = req.url === '/' ? '/index.html' : decodeURIComponent(req.url.split('?')[0]);
   const file = path.resolve(root, `.${requested}`);
