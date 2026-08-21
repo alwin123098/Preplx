@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Simple website security monitoring for small businesses." />
+    <title>SiteGuard — Website security made simple</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="cyber.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="SiteGuard home"><span class="brand-mark">S</span>site<span>guard</span></a>
+        <div class="nav-links"><a href="#how-it-works">How it works</a><a href="#zip-scanner">ZIP scanner</a><a href="#plans">Pricing</a></div>
+        <a class="nav-cta" href="#scan"><i></i> Run a free scan <span>→</span></a>
+      </nav>
+
+      <section class="hero" id="top">
+        <div class="eyebrow"><span class="pulse"></span> YOUR WEBSITE. UNDER WATCH.</div>
+        <h1>Website security<br /><em>without the scary bits.</em></h1>
+        <p class="hero-copy">One clear scan finds the risks that can hurt your business — malware, weak settings, and data leaks. No IT team needed.</p>
+        <div class="security-motion" aria-hidden="true"><div class="motion-grid"></div><div class="radar-ring ring-one"></div><div class="radar-ring ring-two"></div><div class="radar-ring ring-three"></div><div class="radar-sweep"></div><i class="signal signal-one"></i><i class="signal signal-two"></i><i class="signal signal-three"></i><div class="motion-core">S</div><span class="motion-label left">THREAT SURFACE</span><span class="motion-label right">LIVE DEFENSE</span></div>
+
+        <section class="scan-card" id="scan" aria-labelledby="scan-title">
+          <div class="scan-card-top"><div><p class="card-kicker">FREE WEBSITE CHECK</p><h2 id="scan-title">Know where your site stands.</h2></div><span class="lock-icon" aria-hidden="true">◈</span></div>
+          <form id="scan-form" novalidate>
+            <label class="sr-only" for="website">Your website address</label>
+            <div class="url-input"><span aria-hidden="true">⌘</span><input id="website" name="website" inputmode="url" autocomplete="url" placeholder="yourwebsite.com" required /><button type="submit">Scan my site <span>→</span></button></div>
+            <p class="form-note">Free. Takes about 60 seconds. We never change your website.</p>
+          </form>
+        </section>
+        <div class="trust-row"><span>Trusted by small teams who’d rather run their business.</span><div class="avatars" aria-hidden="true"><i>J</i><i>M</i><i>A</i><i>R</i></div><strong>1,200+ sites checked this month</strong></div>
+      </section>
+
+      <section class="scan-progress hidden" id="progress" aria-live="polite">
+        <div class="progress-header"><div><p class="card-kicker">SCANNING <span id="scan-domain"></span></p><h2>Looking under the hood…</h2></div><span id="scan-percent">0%</span></div>
+        <div class="bar"><i id="bar-fill"></i></div>
+        <ul id="scan-steps"><li class="active">Fetching the public website <span>Working</span></li><li>Inspecting connection and security headers <span>Waiting</span></li><li>Reviewing visible forms and code signals <span>Waiting</span></li><li>Creating a local risk assessment <span>Waiting</span></li></ul>
+      </section>
+
+      <section class="report hidden" id="report" aria-live="polite">
+        <div class="report-heading"><div><p class="card-kicker">SECURITY REPORT <span id="report-domain"></span></p><h2>Here’s what we found</h2></div><button class="text-button" id="new-scan">Scan another site</button></div>
+        <div class="report-grid"><article class="score-card"><p>Your security score</p><div class="score"><b>72</b><span>/100</span></div><div class="score-label"><i></i> Needs attention</div><small>Good foundation, but 3 issues should be fixed.</small></article><article class="summary-card"><div class="summary-stat"><strong>1</strong><span>urgent issue</span></div><div class="summary-stat"><strong>2</strong><span>improvements</span></div><p>Nothing suggests an active malware infection. Your website is accessible and your certificate is valid.</p></article></div>
+        <div class="findings"><div class="finding-heading"><h3>Your action list</h3><p>Start with the urgent item — it’s the best protection for your customers.</p></div>
+          <article class="finding urgent"><div class="finding-icon">!</div><div><div class="finding-title"><h4>Your contact form could expose customer messages</h4><span>URGENT</span></div><p>Your form sends information without extra protection. Someone may be able to read messages sent by customers on an insecure network.</p><a href="#fix">How to fix this <b>→</b></a></div></article>
+          <article class="finding"><div class="finding-icon">↗</div><div><div class="finding-title"><h4>Add a security rule to protect against fake logins</h4><span>RECOMMENDED</span></div><p>A small browser setting can make it harder for attackers to impersonate your website.</p><a href="#fix">Show me the simple fix <b>→</b></a></div></article>
+          <article class="finding"><div class="finding-icon">✓</div><div><div class="finding-title"><h4>Your site uses a secure connection</h4><span class="good">LOOKING GOOD</span></div><p>Your SSL certificate is active, so information moving between your visitors and your website is encrypted.</p></div></article>
+        </div>
+        <div class="monitor-card"><div><p class="card-kicker">STAY PROTECTED</p><h3>We can keep watch from here.</h3><p>Get an email the moment something changes or needs your attention.</p></div><form id="monitor-form"><label class="sr-only" for="email">Email address</label><input id="email" type="email" placeholder="you@company.com" required /><button type="submit">Protect this site</button><small>14 days free. No card required.</small></form></div>
+      </section>
+
+      <section class="dashboard" id="dashboard" aria-labelledby="dashboard-title">
+        <div class="dashboard-intro"><div><p class="card-kicker">LOCAL SECURITY DESK</p><h2 id="dashboard-title">Your watched websites</h2><p>Every scan stays on this device. Your most recent checks appear here.</p></div><a href="#scan" class="dash-scan">+ Scan a website</a></div>
+        <div class="dashboard-table" id="history-list"><p class="empty-history">No saved checks yet. Run your first free scan above.</p></div>
+      </section>
+
+      <section class="zip-inline" id="zip-scanner" aria-labelledby="zip-title">
+        <div class="zip-inline-copy"><p class="card-kicker">LOCAL CODE SECURITY REVIEW</p><h2 id="zip-title">Got a website ZIP?<br /><em>Check it before it ships.</em></h2><p>Upload your code for a private, local security review. We find risky patterns and give clear fixes — without sending your files to an AI service.</p><div class="zip-safe"><span>◈</span><span>Files are never executed and are deleted as soon as the scan finishes.</span></div></div>
+        <div class="zip-card" id="upload"><p class="card-kicker">ZIP SECURITY SCANNER</p><h2>Review your source code</h2><form id="zip-form"><label class="drop-zone" for="zip-file"><span class="zip-icon">⇧</span><strong>Choose a .zip file</strong><small>Maximum 8 MB · Source code is processed locally</small><input id="zip-file" type="file" accept=".zip,application/zip" required /></label><button type="submit">Run local code scan <span>→</span></button></form><p class="form-note">We inspect source text only. We never execute your files.</p></div>
+        <section class="zip-results hidden" id="zip-results" aria-live="polite"></section>
+      </section>
+
+      <section class="how" id="how-it-works"><div><p class="card-kicker">HOW IT WORKS</p><h2>Security clarity,<br />not security jargon.</h2></div><div class="how-list"><article><span>01</span><h3>Enter your address</h3><p>We safely inspect your public-facing website. No access or installation needed.</p></article><article><span>02</span><h3>Get the plain-English version</h3><p>See what’s fine, what needs attention, and exactly what to do next.</p></article><article><span>03</span><h3>Stay a step ahead</h3><p>Turn on monitoring and we’ll let you know when your site needs you.</p></article></div></section>
+      <footer><a class="brand" href="#top"><span class="brand-mark">S</span>site<span>guard</span></a><p>Website security, without the headache.</p><span>© 2026 SiteGuard</span></footer>
+    </main>
+    <div class="toast hidden" id="toast" role="status">You’re on the protection list — check your inbox.</div>
+    <script src="app.js"></script>
+    <script src="zip-scanner.js"></script>
+  </body>
+</html>
